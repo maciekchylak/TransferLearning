@@ -46,9 +46,12 @@ TRAIN = 'train'
 trainset = datasets.ImageFolder(os.path.join(data_dir, TRAIN),transform = data_transforms(TRAIN))
 testset = datasets.ImageFolder(os.path.join(data_dir, TEST),transform = data_transforms(TEST))
 
+first_1000 = list(range(0, 1000, 1))
+trainset_subset = torch.utils.data.Subset(trainset, first_1000)
+
 class_names = trainset.classes
 
-trainloader = DataLoader(trainset,batch_size = 64,shuffle = True)
-testloader = DataLoader(testset,batch_size = 64,shuffle = True)
+trainloader = DataLoader(trainset_subset, batch_size = 40,shuffle = True)
+testloader = DataLoader(testset,batch_size = 40,shuffle = True)
 
 images, labels = iter(trainloader).next()
