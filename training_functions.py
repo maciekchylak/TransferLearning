@@ -7,8 +7,8 @@ import torchvision.models as models
 import torchvision
 import torch.nn as nn
 import torch
-import tensorflow as tf
 from torch.optim.lr_scheduler import MultiStepLR
+import tensorflow as tf
 
 from data_loader import *
 
@@ -56,8 +56,6 @@ def forward(x, student, teacher, a_all):
 
     student_blocks, teacher_blocks = hybrid_blocks(student, teacher)
 
-    softmax = nn.Softmax(dim=1)
-
     tmp_x = x     # forward pipeline
     tmp_x = student.conv1(tmp_x)
     tmp_x = student.bn1(tmp_x)
@@ -66,12 +64,11 @@ def forward(x, student, teacher, a_all):
     tmp_x, a_all = _forward_blocks(tmp_x, student_blocks, teacher_blocks, a_all)
     tmp_x = student.avgpool(tmp_x)
     tmp_x = torch.flatten(tmp_x, 1)
-    tmp_x = student.fc(tmp_x)
-    output = softmax(tmp_x)
+    output = student.fc(tmp_x)
 
     return output
 
-def training(data, student, teacher, p, epochs = 200,intervals=200):
+def training_ikd(data_train, data_val, student, teacher, p, epochs = 200, intervals=200, id=''):
     # dodałem parametr intervals:
     # jeśli intervals = epochs     mamy Uniform schedule
     # jesli intervals = 1          mamy Linear growth schedule
@@ -79,23 +76,31 @@ def training(data, student, teacher, p, epochs = 200,intervals=200):
     loss_function = nn.CrossEntropyLoss()
     #optimizer = optim.Adam(student.parameters(), lr=0.001)
     #optimizer(SGD) i modyfikacja learning rate(MultiStepLR) z artykułu
-    optimizer = optim.SGD(student.parameters(), lr=0.1, weight_decay=0.0001, momentum=0.9)
+    #optimizer = optim.SGD(student.parameters(), lr=0.1, weight_decay=0.0001, momentum=0.9)
+    optimizer = optim.Adam(teacher.parameters(), lr=4e-4)
+    
     train_loss = []
     train_score = []
+    val_score = []
+
     x=np.linspace(p, 1, int(epochs/intervals))
     print(f"x = {x}")
     p_all=np.tile(x,intervals)
     print(f"p_all = {p_all}")
+    
     for e in range(epochs):
         print(f"\nEpoch no. {e}")
         score = 0
+        score_val = 0
         loss = 0
+        
         student_blocks, teacher_blocks = hybrid_blocks(student, teacher)
         #a_all = [np.random.binomial(1, p) for i in range(len(student_blocks))]
         a_all = [np.random.binomial(1, p_all[e]) for i in range(len(student_blocks))]   # hybrid block building schema
         print(f"p_all[e] = {p_all[e]}")
         print(f"a_all = {a_all}")
         #a_all =[1,0,1,1,1,1,1,1]
+        
         for block, a in zip(student_blocks,a_all):
             if a==0:
                 for param in block.parameters():
@@ -103,8 +108,8 @@ def training(data, student, teacher, p, epochs = 200,intervals=200):
             else:
                 for param in block.parameters():
                     param.requires_grad=True
-        for image, label in data:
-            student_blocks, teacher_blocks = hybrid_blocks(student, teacher)
+
+        for image, label in data_train:
             image = image.to(device)
             label = label.to(device)
             optimizer.zero_grad()
@@ -116,14 +121,31 @@ def training(data, student, teacher, p, epochs = 200,intervals=200):
             score += torch.sum(index_ == label.data).item()
             loss += loss.item()
             print('step')
-        epoch_score = score / len(data)
-        epoch_loss = loss / len(data)
+
+        for image, label in data_val:
+            image = image.to(device)
+            label = label.to(device)
+            y_pred = teacher(image.float())
+            val, index_ = torch.max(y_pred, axis=1)
+            score_val += torch.sum(index_ == label.data).item()
+
+            epoch_score_train = score / (len(data_train) * batch_size)
+            epoch_score_val = score_val / (len(data_val) * batch_size)
+            epoch_loss = loss / len(data_train)
+        
         train_loss.append(epoch_loss)
-        train_score.append(epoch_score)
-        print("Training loss: {}, accuracy: {}".format(epoch_loss, epoch_score))
+        train_score.append(epoch_score_train)
+        val_score.append(epoch_score_val)
+
+        print(f"Training loss: {epoch_loss}")
+        print(f"Train accuracy: {epoch_score_train}")
+        print(f"Val accuracy: {epoch_score_val}")
+    
+    save_model(student, id)
+
     return train_loss, train_score
 
-def training_teacher(data,teacher, epochs = 200):
+def training_model(data_train, data_val, teacher, epochs = 200, id=''):
     # dodałem parametr intervals:
     # jeśli intervals = epochs     mamy Uniform schedule
     # jesli intervals = 1          mamy Linear growth schedule
@@ -131,43 +153,56 @@ def training_teacher(data,teacher, epochs = 200):
     loss_function = nn.CrossEntropyLoss()
     #optimizer = optim.Adam(student.parameters(), lr=0.001)
     #optimizer(SGD) i modyfikacja learning rate(MultiStepLR) z artykułu
-    optimizer = optim.SGD(teacher.parameters(), lr=0.1, weight_decay=0.0001, momentum=0.9)
+    optimizer = optim.Adam(teacher.parameters(), lr=4e-4)
     train_loss = []
     train_score = []
-    softmax = nn.Softmax(dim=1)
+    val_score = []
     for e in range(epochs):
         print(f"\nEpoch no. {e}")
-        score = 0
+        score_train = 0
+        score_val = 0
         loss = 0
 
-        for image, label in data:
+        for image, label in data_train:
             image = image.to(device)
             label = label.to(device)
             optimizer.zero_grad()
-            y_pred = teacher(image)
-            y_pred = softmax(y_pred)
+            y_pred = teacher(image.float())
             loss = loss_function(y_pred, label)
             loss.backward()
             optimizer.step()
             val, index_ = torch.max(y_pred, axis=1)
-            score += torch.sum(index_ == label.data).item()
+            score_train += torch.sum(index_ == label.data).item()
             loss += loss.item()
 
-        epoch_score = score / len(data)
-        epoch_loss = loss / len(data)
+        for image, label in data_val:
+            image = image.to(device)
+            label = label.to(device)
+            y_pred = teacher(image.float())
+            val, index_ = torch.max(y_pred, axis=1)
+            score_val += torch.sum(index_ == label.data).item()
+        
+        epoch_score_train = score_train / (len(data_train) * batch_size)
+        epoch_score_val = score_val / (len(data_val) * batch_size)
+        epoch_loss = loss / len(data_train)
+        
         train_loss.append(epoch_loss)
-        train_score.append(epoch_score)
-        print("Training loss: {}, accuracy: {}".format(epoch_loss, epoch_score))
+        train_score.append(epoch_score_train)
+        val_score.append(epoch_score_val)
+
+        print(f"Training loss: {epoch_loss}")
+        print(f"Train accuracy: {epoch_score_train}")
+        print(f"Val accuracy: {epoch_score_val}")
+
+    save_model(teacher, id)
+
     return train_loss, train_score
 
-def save_model(epochs, model,id):
+def save_model(model, id):
     """
     Function to save the trained model to disk.
     """
-    torch.save({
-                'epoch': epochs,
-                'model_state_dict': model.state_dict(),
-                }, f'outputs/model_{id}.pt')
+    torch.save(model.state_dict(), f'outputs/model_{id}.pt')
 
 
 resnet34 = models.resnet34(pretrained=True)
