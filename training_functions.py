@@ -121,7 +121,7 @@ def training(data, student, teacher, p, epochs = 200,intervals=200):
         train_loss.append(epoch_loss)
         train_score.append(epoch_score)
         print("Training loss: {}, accuracy: {}".format(epoch_loss, epoch_score))
-        return train_loss, train_score
+    return train_loss, train_score
 
 def training_teacher(data,teacher, epochs = 200):
     # dodałem parametr intervals:
@@ -134,6 +134,7 @@ def training_teacher(data,teacher, epochs = 200):
     optimizer = optim.SGD(teacher.parameters(), lr=0.1, weight_decay=0.0001, momentum=0.9)
     train_loss = []
     train_score = []
+    softmax = nn.Softmax(dim=1)
     for e in range(epochs):
         print(f"\nEpoch no. {e}")
         score = 0
@@ -144,6 +145,7 @@ def training_teacher(data,teacher, epochs = 200):
             label = label.to(device)
             optimizer.zero_grad()
             y_pred = teacher(image)
+            y_pred = softmax(y_pred)
             loss = loss_function(y_pred, label)
             loss.backward()
             optimizer.step()
@@ -156,16 +158,16 @@ def training_teacher(data,teacher, epochs = 200):
         train_loss.append(epoch_loss)
         train_score.append(epoch_score)
         print("Training loss: {}, accuracy: {}".format(epoch_loss, epoch_score))
-        return train_loss, train_score
+    return train_loss, train_score
 
-def save_model(epochs, model):
+def save_model(epochs, model,id):
     """
     Function to save the trained model to disk.
     """
     torch.save({
                 'epoch': epochs,
                 'model_state_dict': model.state_dict(),
-                }, 'outputs/model.pth')
+                }, f'outputs/model_{id}.pt')
 
 
 resnet34 = models.resnet34(pretrained=True)
