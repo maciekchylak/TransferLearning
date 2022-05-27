@@ -5,5 +5,6 @@ print("Training:\n")
 import time
 start_time = time.time()
 
-training_model(trainloader,testloader, resnet34, epochs=50, id='teacher')
+#training_model(trainloader,testloader, resnet34, epochs=50, id='teacher')
+training_model(trainloader,testloader, resnet34, epochs=1, id='teacher')
 print("--- %s seconds ---" % (time.time() - start_time))
