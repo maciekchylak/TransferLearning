@@ -6,5 +6,6 @@ import time
 start_time = time.time()
 
 model=load(models.resnet34(pretrained=True),"teacher")
-training_ikd(trainloader,testloader, resnet18, model, 0.9, epochs = 30,intervals=1, id='ikd_linear_90')
+
+training_ikd(trainloader,testloader, resnet18, model, 0.9, epochs = 30,intervals=30, id='ikd_unifrom_90')
 print("--- %s seconds ---" % (time.time() - start_time))
