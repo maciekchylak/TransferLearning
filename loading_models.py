@@ -7,8 +7,6 @@ def load(model, name):
     resnet = model
     resnet.fc =  nn.Linear(512, 2)
     resnet.load_state_dict(torch.load(f"outputs/model_{name}.pt"))
-    resnet.eval()
-
     return resnet
 
 
@@ -22,4 +20,6 @@ def predict(data_val, model):
         score_val += torch.sum(index_ == label.data).item()
     return score_val/(len(data_val)*batch_size)
 
+model=load(models.resnet18(pretrained=True),"ikd_unifrom_90")
+print(predict(testloader, model))
 
