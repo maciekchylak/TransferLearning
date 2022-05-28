@@ -14,7 +14,8 @@ from data_loader import *
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+#device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cpu')
 
 def hybrid_blocks(student, teacher):
     '''
@@ -96,6 +97,17 @@ def training_ikd(data_train, data_val, student, teacher, p, epochs = 200, interv
         
         student_blocks, teacher_blocks = hybrid_blocks(student, teacher)
         #a_all = [np.random.binomial(1, p) for i in range(len(student_blocks))]
+        #------------------------------------------------------------------------
+        #ustalona liczba blokow w epoce
+        #
+        #a_all = [0 for i in range(len(student_blocks))]
+        #number=round(p_all[e]*len(student_blocks))
+        #print(f"number = {number}")
+        #indexes=np.random.choice(len(student_blocks), number, replace=False)
+        #print(f"indexes = {indexes}")
+        #for index in indexes:
+        #    a_all[index] = 1
+        #------------------------------------------------------------------------
         a_all = [np.random.binomial(1, p_all[e]) for i in range(len(student_blocks))]   # hybrid block building schema
         print(f"p_all[e] = {p_all[e]}")
         print(f"a_all = {a_all}")
@@ -141,7 +153,7 @@ def training_ikd(data_train, data_val, student, teacher, p, epochs = 200, interv
         print(f"Train accuracy: {epoch_score_train}")
         print(f"Val accuracy: {epoch_score_val}")
     
-    save_model(student, id)
+    save_model(student, id, train_loss, train_score, val_score)
 
     return train_loss, train_score
 
@@ -194,15 +206,28 @@ def training_model(data_train, data_val, teacher, epochs = 200, id=''):
         print(f"Train accuracy: {epoch_score_train}")
         print(f"Val accuracy: {epoch_score_val}")
 
-    save_model(teacher, id)
+    save_model(teacher, id, train_loss, train_score, val_score)
+    
+
 
     return train_loss, train_score
 
-def save_model(model, id):
+def save_model(model, id, train_loss, train_score, val_score):
     """
     Function to save the trained model to disk.
+    And training data 
     """
     torch.save(model.state_dict(), f'outputs/model_{id}.pt')
+    
+    with open("training_outputs/train_loss__"+id+".txt", 'w') as f:
+        for s in train_loss:
+            f.write(str(s)+'_')
+    with open("training_outputs/train_score__"+id+".txt", 'w') as f:
+        for s in train_score:
+            f.write(str(s)+'_')
+    with open("training_outputs/val_score__"+id+".txt", 'w') as f:
+        for s in val_score:
+            f.write(str(s)+'_')
 
 
 resnet34 = models.resnet34(pretrained=True)
