@@ -22,6 +22,4 @@ def predict(data_val, model):
         score_val += torch.sum(index_ == label.data).item()
     return score_val/(len(data_val)*batch_size)
 
-model=load(models.resnet18(pretrained=True),"student")
-print(predict(testloader,model))
 

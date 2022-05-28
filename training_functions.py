@@ -78,7 +78,7 @@ def training_ikd(data_train, data_val, student, teacher, p, epochs = 200, interv
     #optimizer = optim.Adam(student.parameters(), lr=0.001)
     #optimizer(SGD) i modyfikacja learning rate(MultiStepLR) z artykułu
     #optimizer = optim.SGD(student.parameters(), lr=0.1, weight_decay=0.0001, momentum=0.9)
-    optimizer = optim.Adam(teacher.parameters(), lr=4e-4)
+    optimizer = optim.Adam(student.parameters(), lr=4e-4)
     
     train_loss = []
     train_score = []
@@ -111,7 +111,7 @@ def training_ikd(data_train, data_val, student, teacher, p, epochs = 200, interv
         a_all = [np.random.binomial(1, p_all[e]) for i in range(len(student_blocks))]   # hybrid block building schema
         print(f"p_all[e] = {p_all[e]}")
         print(f"a_all = {a_all}")
-        #a_all =[1,0,1,1,1,1,1,1]
+        a_all =[1,0,1,1,1,0,1,1]
         
         for block, a in zip(student_blocks,a_all):
             if a==0:
@@ -137,7 +137,7 @@ def training_ikd(data_train, data_val, student, teacher, p, epochs = 200, interv
         for image, label in data_val:
             image = image.to(device)
             label = label.to(device)
-            y_pred = teacher(image.float())
+            y_pred = student(image.float())
             val, index_ = torch.max(y_pred, axis=1)
             score_val += torch.sum(index_ == label.data).item()
 
