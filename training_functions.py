@@ -111,7 +111,7 @@ def training_ikd(data_train, data_val, student, teacher, p, epochs = 200, interv
         a_all = [np.random.binomial(1, p_all[e]) for i in range(len(student_blocks))]   # hybrid block building schema
         print(f"p_all[e] = {p_all[e]}")
         print(f"a_all = {a_all}")
-        a_all =[1,0,1,1,1,0,1,1]
+        #a_all =[1,0,1,1,1,0,1,1]
         
         for block, a in zip(student_blocks,a_all):
             if a==0:
