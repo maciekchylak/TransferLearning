@@ -19,7 +19,7 @@ def accuracy_epochs_plot(score, p):
 
 
 def accuracy_pstart_plot(acc_iakd, acc_teacher, acc_student):
-    p = np.linspace(0, 0.9, 10)
+    p = np.linspace(0.1, 0.9, 5)
     
     plt.figure(figsize=(10, 8), dpi=80)
     plt.xticks(np.arange(0, 1, step = 0.1))
